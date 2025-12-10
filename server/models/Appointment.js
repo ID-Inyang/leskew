@@ -14,7 +14,8 @@ const appointmentSchema = new mongoose.Schema(
       required: true,
     },
     serviceId: { type: String, required: true },
-    serviceName: { type: String }, // Add this for easier reference
+    serviceName: { type: String },
+    serviceDuration: { type: Number }, // in minutes
     date: { type: Date, required: true },
     timeSlot: {
       start: { type: String, required: true },
@@ -25,6 +26,9 @@ const appointmentSchema = new mongoose.Schema(
       enum: ["booked", "canceled", "completed"],
       default: "booked",
     },
+    actualStartTime: { type: Date }, // When service actually started
+    actualEndTime: { type: Date },   // When service actually ended
+    actualDuration: { type: Number }, // Actual service duration in minutes
     notes: { type: String },
   },
   { timestamps: true }

@@ -186,7 +186,6 @@ const VendorProfile = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         {/* Vendor Header */}
-        // Replace the vendor header section with this:
         <div className="bg-white rounded-xl shadow-md p-6 mb-8">
           <div className="flex flex-col md:flex-row md:items-start gap-6">
             {/* Avatar and Business Info */}

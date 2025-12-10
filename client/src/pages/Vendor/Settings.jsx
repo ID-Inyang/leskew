@@ -1,11 +1,12 @@
-// client/src/pages/Vendor/Settings.jsx
+// client/src/pages/Vendor/Settings.jsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import { toast } from 'react-toastify';
 
 const VendorSettings = () => {
-  const { user: _user } = useAuth();
+  const { user, refreshVendorProfile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -32,15 +33,17 @@ const VendorSettings = () => {
 
   const fetchVendorData = async () => {
     try {
-      const response = await api.get('/vendors/profile');
-      if (response.data) {
+      const response = await api.get('/vendors/profile/me'); // FIXED ENDPOINT
+      
+      if (response.data.success && response.data.vendor) {
+        const vendor = response.data.vendor;
         setFormData({
-          businessName: response.data.businessName || '',
-          address: response.data.address || '',
-          contactInfo: response.data.contactInfo || '',
-          serviceCategories: response.data.serviceCategories || [],
-          maxConcurrentAppointments: response.data.maxConcurrentAppointments || 1,
-          workingHours: response.data.workingHours || {
+          businessName: vendor.businessName || '',
+          address: vendor.address || '',
+          contactInfo: vendor.contactInfo || '',
+          serviceCategories: vendor.serviceCategories || [],
+          maxConcurrentAppointments: vendor.maxConcurrentAppointments || 1,
+          workingHours: vendor.workingHours || {
             monday: { open: '09:00', close: '17:00' },
             tuesday: { open: '09:00', close: '17:00' },
             wednesday: { open: '09:00', close: '17:00' },
@@ -50,9 +53,12 @@ const VendorSettings = () => {
             sunday: { open: '', close: '' }
           }
         });
+      } else {
+        toast.error(response.data.message || 'Failed to fetch vendor data');
       }
     } catch (error) {
       console.error('Error fetching vendor data:', error);
+      toast.error('Failed to load vendor profile');
     } finally {
       setLoading(false);
     }
@@ -62,7 +68,7 @@ const VendorSettings = () => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: name === 'maxConcurrentAppointments' ? parseInt(value) || 1 : value
     }));
   };
 
@@ -99,12 +105,29 @@ const VendorSettings = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    
     try {
-      await api.post('/vendors', formData);
-      alert('Profile updated successfully!');
-      fetchVendorData(); // Refresh data
+      console.log('Submitting vendor data:', formData);
+      
+      const response = await api.post('/vendors', formData);
+      
+      if (response.data.success) {
+        toast.success(response.data.message || 'Profile updated successfully!');
+        
+        // Refresh vendor profile in AuthContext
+        if (refreshVendorProfile) {
+          await refreshVendorProfile();
+        }
+        
+        // Refresh local data
+        fetchVendorData();
+      } else {
+        toast.error(response.data.message || 'Failed to update profile');
+      }
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to update profile');
+      console.error('Save vendor error:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to update profile';
+      toast.error(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -134,6 +157,14 @@ const VendorSettings = () => {
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Vendor Settings</h1>
           <p className="text-gray-600 mb-8">Manage your business profile and settings</p>
+          
+          {user?.role !== 'vendor' && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <p className="text-yellow-800">
+                <strong>Note:</strong> You are logged in as a {user?.role}. Vendor settings are only available to vendors.
+              </p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Basic Information */}
@@ -151,6 +182,7 @@ const VendorSettings = () => {
                     className="input-field"
                     value={formData.businessName}
                     onChange={handleInputChange}
+                    placeholder="Your Business Name"
                   />
                 </div>
                 <div>
@@ -195,8 +227,11 @@ const VendorSettings = () => {
                     className="input-field"
                     value={formData.contactInfo}
                     onChange={handleInputChange}
-                    placeholder="Phone, email, or other contact details"
+                    placeholder="Phone: +1234567890, Email: contact@business.com"
                   />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Include phone number and/or email
+                  </p>
                 </div>
               </div>
             </div>

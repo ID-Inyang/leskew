@@ -23,6 +23,8 @@ const vendorSchema = new mongoose.Schema(
       sunday: { open: String, close: String },
     },
     maxConcurrentAppointments: { type: Number, default: 1 },
+    averageServiceDuration: { type: Number, default: 30 }, // in minutes
+    estimatedPerPersonWait: { type: Number, default: 15 }, // minutes per person ahead
     isApproved: { type: Boolean, default: false },
   },
   { timestamps: true }

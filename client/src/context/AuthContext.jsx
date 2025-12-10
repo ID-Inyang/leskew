@@ -23,6 +23,7 @@ const useAuth = () => {
 // Auth provider component
 const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [vendorProfile, setVendorProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -32,30 +33,42 @@ const AuthProvider = ({ children }) => {
       // Set the token for the request
       api.defaults.headers.common.Authorization = `Bearer ${token}`;
 
-      // Make a request to validate the token and get fresh user data
-      // Note: This endpoint might need to be created or use a different one
-      const response = await api.get("/users/profile");
+      // Use the new auth/me endpoint
+      const response = await api.get("/auth/me");
 
-      if (response.data) {
+      if (response.data.success) {
         const userData = {
-          ...response.data,
-          // Ensure we have the id field (some APIs use _id)
-          id: response.data._id || response.data.id,
+          ...response.data.user,
+          id: response.data.user._id || response.data.user.id,
         };
 
         // Update localStorage with fresh data
         localStorage.setItem("user", JSON.stringify(userData));
         localStorage.setItem("token", token);
 
+        // Update vendor profile if exists
+        if (response.data.vendorProfile) {
+          setVendorProfile(response.data.vendorProfile);
+          localStorage.setItem("vendorProfile", JSON.stringify(response.data.vendorProfile));
+        } else {
+          setVendorProfile(null);
+          localStorage.removeItem("vendorProfile");
+        }
+
         return userData;
       }
       return null;
     } catch (err) {
       console.error("Token validation failed:", err);
+      
       // Clear invalid tokens
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      localStorage.removeItem("vendorProfile");
+      
       delete api.defaults.headers.common.Authorization;
+      setVendorProfile(null);
+      
       return null;
     }
   }, []);
@@ -66,12 +79,19 @@ const AuthProvider = ({ children }) => {
       try {
         const token = localStorage.getItem("token");
         const userData = localStorage.getItem("user");
+        const vendorProfileData = localStorage.getItem("vendorProfile");
 
         if (token && userData) {
           try {
             // Parse stored user data first
             const parsedUser = JSON.parse(userData);
             setUser(parsedUser);
+            
+            // Parse vendor profile if exists
+            if (vendorProfileData) {
+              const parsedVendorProfile = JSON.parse(vendorProfileData);
+              setVendorProfile(parsedVendorProfile);
+            }
             
             // Then validate in background
             api.defaults.headers.common.Authorization = `Bearer ${token}`;
@@ -84,7 +104,9 @@ const AuthProvider = ({ children }) => {
             console.error("Error parsing user data:", parseError);
             localStorage.removeItem("token");
             localStorage.removeItem("user");
+            localStorage.removeItem("vendorProfile");
             setUser(null);
+            setVendorProfile(null);
           }
         }
       } catch (err) {
@@ -98,13 +120,21 @@ const AuthProvider = ({ children }) => {
     initializeAuth();
   }, [validateToken]);
 
+  // Login function - updated for new backend response format
   const login = async (email, password) => {
     setLoading(true);
     setError(null);
 
     try {
+      // Call the updated backend endpoint
       const response = await api.post("/auth/login", { email, password });
-      const { token, user: userData } = response.data;
+      
+      // Check if response has success flag (new format)
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Login failed");
+      }
+      
+      const { token, user: userData, vendorProfile: vendorData } = response.data;
 
       // Ensure user data has required fields
       const completeUserData = {
@@ -115,6 +145,15 @@ const AuthProvider = ({ children }) => {
       // Store in localStorage
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(completeUserData));
+      
+      // If vendor, store vendor profile info
+      if (userData.role === 'vendor' && vendorData) {
+        setVendorProfile(vendorData);
+        localStorage.setItem("vendorProfile", JSON.stringify(vendorData));
+      } else {
+        setVendorProfile(null);
+        localStorage.removeItem("vendorProfile");
+      }
 
       // Set default authorization header
       api.defaults.headers.common.Authorization = `Bearer ${token}`;
@@ -124,20 +163,34 @@ const AuthProvider = ({ children }) => {
       setError(null);
 
       toast.success("Login successful!");
-      return completeUserData;
+      
+      // Return the complete response including vendor profile
+      return {
+        success: true,
+        user: completeUserData,
+        vendorProfile: vendorData
+      };
     } catch (err) {
       const errorMessage =
         err.response?.data?.message ||
         err.response?.data?.error ||
+        err.message ||
         "Login failed. Please check your credentials.";
+      
       setError(errorMessage);
       toast.error(errorMessage);
-      throw err;
+      
+      // Return failure response
+      return {
+        success: false,
+        message: errorMessage
+      };
     } finally {
       setLoading(false);
     }
   };
 
+  // Register function
   const register = async (userData, avatarFile = null) => {
     setLoading(true);
     setError(null);
@@ -165,6 +218,11 @@ const AuthProvider = ({ children }) => {
         }
       });
       
+      // Check for success flag
+      if (!response.data.success) {
+        throw new Error(response.data.message || "Registration failed");
+      }
+      
       const { token, user: userDataResponse } = response.data;
       
       // Ensure user data has required fields
@@ -185,7 +243,10 @@ const AuthProvider = ({ children }) => {
       setError(null);
       
       toast.success('Registration successful!');
-      return completeUserData;
+      return {
+        success: true,
+        user: completeUserData
+      };
     } catch (err) {
       let errorMessage = 'Registration failed';
       
@@ -202,7 +263,11 @@ const AuthProvider = ({ children }) => {
       
       setError(errorMessage);
       toast.error(errorMessage);
-      throw err;
+      
+      return {
+        success: false,
+        message: errorMessage
+      };
     } finally {
       setLoading(false);
     }
@@ -271,51 +336,89 @@ const AuthProvider = ({ children }) => {
     }
   };
 
+  // Logout function
   const logout = () => {
     // Clear localStorage
     localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("vendorProfile");
 
     // Clear axios headers
     delete api.defaults.headers.common.Authorization;
 
     // Reset state
     setUser(null);
+    setVendorProfile(null);
     setError(null);
 
     toast.info("Logged out successfully");
 
-    // Optional: Redirect to home page
+    // Redirect to home page
     window.location.href = "/";
   };
 
-  const updateProfile = async (profileData) => {
-    setLoading(true);
+  // Update profile function
+// In your AuthContext.jsx - Update the updateProfile function
+const updateProfile = async (profileData) => {
+  setLoading(true);
 
+  try {
+    const response = await api.put("/users/profile", profileData);
+
+    // Check for success flag
+    if (!response.data.success) {
+      throw new Error(response.data.message || "Update failed");
+    }
+
+    // Merge updated data with existing user data
+    const updatedUser = {
+      ...user,
+      ...response.data.user,
+      id: response.data.user._id || response.data.user.id || user?.id,
+    };
+
+    // Update localStorage
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+
+    // Update state
+    setUser(updatedUser);
+
+    toast.success(response.data.message || "Profile updated successfully!");
+    
+    return {
+      success: true,
+      user: updatedUser
+    };
+  } catch (err) {
+    const errorMessage = err.response?.data?.message || err.message || "Update failed";
+    toast.error(errorMessage);
+    
+    return {
+      success: false,
+      message: errorMessage
+    };
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // Function to refresh vendor profile
+  const refreshVendorProfile = async () => {
+    if (user?.role !== 'vendor') return null;
+    
     try {
-      const response = await api.put("/users/profile", profileData);
-
-      // Merge updated data with existing user data
-      const updatedUser = {
-        ...user,
-        ...response.data,
-        id: response.data._id || response.data.id || user?.id,
-      };
-
-      // Update localStorage
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-
-      // Update state
-      setUser(updatedUser);
-
-      toast.success("Profile updated successfully!");
-      return updatedUser;
-    } catch (err) {
-      const errorMessage = err.response?.data?.message || "Update failed";
-      toast.error(errorMessage);
-      throw err;
-    } finally {
-      setLoading(false);
+      const response = await api.get('/vendors/profile/me');
+      
+      if (response.data.success) {
+        const vendorData = response.data.vendor;
+        setVendorProfile(vendorData);
+        localStorage.setItem("vendorProfile", JSON.stringify(vendorData));
+        return vendorData;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error refreshing vendor profile:', error);
+      return null;
     }
   };
 
@@ -329,10 +432,21 @@ const AuthProvider = ({ children }) => {
     return roles.includes(user?.role);
   };
 
+  // Function to check if vendor profile is approved
+  const isVendorApproved = () => {
+    return vendorProfile?.isApproved === true;
+  };
+
+  // Function to check if vendor has completed profile
+  const hasVendorProfile = () => {
+    return vendorProfile?.hasProfile !== false && vendorProfile?.businessName;
+  };
+
   return (
     <AuthContext.Provider
       value={{
         user,
+        vendorProfile,
         loading,
         error,
         login,
@@ -341,7 +455,11 @@ const AuthProvider = ({ children }) => {
         updateProfile,
         updateAvatar,
         removeAvatar,
+        refreshVendorProfile,
         isAuthenticated: !!user,
+        isVendor: user?.role === 'vendor',
+        isVendorApproved,
+        hasVendorProfile,
         hasRole,
         hasAnyRole,
         setError,

@@ -29,6 +29,7 @@
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
+    "node-cron": "^4.2.1",
     "nodemon": "^3.1.11"
   }
 }

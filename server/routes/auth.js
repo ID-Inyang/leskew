@@ -1,4 +1,4 @@
-// server/routes/auth.js - Update register route
+// server/routes/auth.js - COMPLETE VERSION with login
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
@@ -15,6 +15,8 @@ const generateToken = (id) => {
     expiresIn: '30d'
   });
 };
+
+// ================ REGISTER ROUTE ================
 
 // @route   POST /api/auth/register
 // @desc    Register user/vendor with avatar
@@ -88,7 +90,7 @@ router.post('/register', uploadAvatar, [
         address: req.body.address || '',
         contactInfo: req.body.contactInfo || '',
         serviceCategories: req.body.serviceCategories || [],
-        isApproved: false
+        isApproved: process.env.NODE_ENV === 'development'  // Auto-approve vendors upon registration
       });
       await vendor.save();
     }
@@ -97,6 +99,7 @@ router.post('/register', uploadAvatar, [
     const token = generateToken(user._id);
 
     res.status(201).json({
+      success: true,
       token,
       user: {
         id: user._id,
@@ -108,7 +111,197 @@ router.post('/register', uploadAvatar, [
     });
   } catch (error) {
     console.error('Register error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error' 
+    });
   }
 });
+
+// ================ LOGIN ROUTE ================
+
+// @route   POST /api/auth/login
+// @desc    Authenticate user & get token (THIS IS THE MISSING ROUTE!)
+router.post('/login', [
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('password').notEmpty().withMessage('Password is required')
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ 
+      success: false,
+      errors: errors.array() 
+    });
+  }
+
+  try {
+    const { email, password } = req.body;
+    
+    console.log('🔐 Login attempt for:', email);
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      console.log('❌ User not found:', email);
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid credentials' 
+      });
+    }
+
+    // Check password
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    
+    if (!isPasswordValid) {
+      console.log('❌ Invalid password for:', email);
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid credentials' 
+      });
+    }
+
+    // If vendor, check if profile exists and get vendor data
+    let vendorProfile = null;
+    if (user.role === 'vendor') {
+      vendorProfile = await Vendor.findOne({ userId: user._id });
+    }
+
+    // Generate token
+    const token = generateToken(user._id);
+    
+    console.log('✅ Login successful for:', email);
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar
+      },
+      vendorProfile: vendorProfile ? {
+        businessName: vendorProfile.businessName,
+        isApproved: vendorProfile.isApproved,
+        hasProfile: true
+      } : {
+        hasProfile: false
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error' 
+    });
+  }
+});
+
+// ================ GET CURRENT USER ================
+
+// @route   GET /api/auth/me
+// @desc    Get current user profile
+router.get('/me', async (req, res) => {
+  try {
+    // Check for token in header
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ 
+        success: false,
+        message: 'No token, authorization denied' 
+      });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Get user
+    const user = await User.findById(decoded.id).select('-passwordHash');
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+
+    // If vendor, get vendor profile
+    let vendorProfile = null;
+    if (user.role === 'vendor') {
+      vendorProfile = await Vendor.findOne({ userId: user._id });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar
+      },
+      vendorProfile: vendorProfile ? {
+        businessName: vendorProfile.businessName,
+        isApproved: vendorProfile.isApproved,
+        hasProfile: true
+      } : {
+        hasProfile: false
+      }
+    });
+  } catch (error) {
+    console.error('Get me error:', error);
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        success: false,
+        message: 'Invalid token' 
+      });
+    }
+    
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error' 
+    });
+  }
+});
+
+// ================ LOGOUT ROUTE ================
+
+// @route   POST /api/auth/logout
+// @desc    Logout user (client-side token removal)
+router.post('/logout', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Logged out successfully'
+  });
+});
+
+// ================ CHECK EMAIL AVAILABILITY ================
+
+// @route   POST /api/auth/check-email
+// @desc    Check if email is available
+router.post('/check-email', [
+  body('email').isEmail().withMessage('Valid email is required')
+], async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+    
+    res.json({
+      success: true,
+      available: !user,
+      message: user ? 'Email already registered' : 'Email is available'
+    });
+  } catch (error) {
+    console.error('Check email error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error' 
+    });
+  }
+});
+
 export default router;

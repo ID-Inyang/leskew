@@ -292,6 +292,44 @@ const seedDatabase = async () => {
     }
     console.log(`✅ Created ${queueEntries.length} queue entries`);
 
+    // Add this to your existing seed-data.js or create a new one
+const updateVendorsWithServiceData = async () => {
+  try {
+    const vendors = await Vendor.find();
+    
+    for (const vendor of vendors) {
+      // Set realistic values based on business type
+      let maxConcurrent = 1;
+      let avgDuration = 30;
+      let perPersonWait = 15;
+
+      // Customize based on business type
+      if (vendor.businessName.includes('Barber') || vendor.businessName.includes('Salon')) {
+        maxConcurrent = 3;
+        avgDuration = 45;
+        perPersonWait = 15;
+      } else if (vendor.businessName.includes('Auto')) {
+        maxConcurrent = 2;
+        avgDuration = 90;
+        perPersonWait = 45;
+      } else if (vendor.businessName.includes('Massage') || vendor.businessName.includes('Clinic')) {
+        maxConcurrent = 1;
+        avgDuration = 60;
+        perPersonWait = 30;
+      }
+
+      vendor.maxConcurrentAppointments = maxConcurrent;
+      vendor.averageServiceDuration = avgDuration;
+      vendor.estimatedPerPersonWait = perPersonWait;
+      
+      await vendor.save();
+      console.log(`Updated ${vendor.businessName}: ${maxConcurrent} concurrent, ${avgDuration}min avg`);
+    }
+  } catch (error) {
+    console.error('Update vendors error:', error);
+  }
+};
+
     // Summary
     console.log("\n🎉 Database seeding completed!");
     console.log("=".repeat(50));

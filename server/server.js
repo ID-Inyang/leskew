@@ -14,6 +14,7 @@ import vendorRoutes from './routes/vendors.js';
 import appointmentRoutes from './routes/appointments.js';
 import queueRoutes from './routes/queue.js';
 import adminRoutes from './routes/admin.js';
+import analyticsRoutes from './routes/analytics.js';
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(morgan('dev'));
+app.use('/api/analytics', analyticsRoutes);
 
 // MongoDB Atlas Connection - FIXED VERSION
 const connectDB = async () => {

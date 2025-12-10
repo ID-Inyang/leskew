@@ -1,4 +1,4 @@
-// client/src/pages/Shared/Profile.jsx
+// client/src/pages/Shared/Profile.jsx - CLEAN VERSION
 import React, { useState, useEffect, useRef } from 'react';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../context/AuthContext';
@@ -48,23 +48,30 @@ const Profile = () => {
     try {
       // Use the updateAvatar function from AuthContext if available
       if (updateAvatar) {
-        await updateAvatar(file);
+        const result = await updateAvatar(file);
+        if (result) {
+          toast.success('Profile picture updated!');
+        }
       } else {
         // Fallback to direct API call
         const formData = new FormData();
         formData.append('avatar', file);
         
-        // Prefix variable with underscore to indicate it's intentionally unused
-        const _response = await api.put('/users/avatar', formData, {
+        const response = await api.put('/users/avatar', formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
         });
         
-        toast.success('Profile picture updated!');
+        if (response.data.success) {
+          toast.success('Profile picture updated!');
+        } else {
+          toast.error(response.data.message || 'Failed to upload image');
+        }
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to upload image');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to upload image';
+      toast.error(errorMessage);
     } finally {
       setAvatarLoading(false);
     }
@@ -76,24 +83,45 @@ const Profile = () => {
     try {
       // Use the removeAvatar function from AuthContext if available
       if (removeAvatar) {
-        await removeAvatar();
+        const result = await removeAvatar();
+        if (result) {
+          toast.success('Profile picture removed');
+        }
       } else {
         // Fallback to direct API call
-        await api.delete('/users/avatar');
-        toast.success('Profile picture removed');
+        const response = await api.delete('/users/avatar');
+        if (response.data.success) {
+          toast.success('Profile picture removed');
+        } else {
+          toast.error(response.data.message || 'Failed to remove image');
+        }
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to remove image');
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to remove image';
+      toast.error(errorMessage);
     }
   };
 
+  // Handle form submission with new response format
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    
     try {
-      await updateProfile(profileData);
+      // Call the updateProfile function from AuthContext
+      const result = await updateProfile(profileData);
+      
+      if (result && result.success) {
+        // Success message is already shown by the updateProfile function
+        console.log('Profile updated successfully:', result.user);
+      } else if (result) {
+        // Error message is already shown by the updateProfile function
+        console.error('Profile update failed:', result.message);
+      }
     } catch (error) {
+      // Fallback error handling
       console.error('Error updating profile:', error);
+      toast.error(error.message || 'Failed to update profile');
     } finally {
       setLoading(false);
     }
@@ -105,6 +133,130 @@ const Profile = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  // Password change section component
+  const PasswordChangeSection = () => {
+    const [passwordData, setPasswordData] = useState({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    const [passwordLoading, setPasswordLoading] = useState(false);
+    const [passwordError, setPasswordError] = useState('');
+
+    const handlePasswordChange = async (e) => {
+      e.preventDefault();
+      setPasswordLoading(true);
+      setPasswordError('');
+
+      // Validate passwords match
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        setPasswordError('New passwords do not match');
+        setPasswordLoading(false);
+        return;
+      }
+
+      // Validate password strength
+      if (passwordData.newPassword.length < 6) {
+        setPasswordError('New password must be at least 6 characters');
+        setPasswordLoading(false);
+        return;
+      }
+
+      try {
+        // Direct API call for password change
+        const response = await api.put('/users/profile', {
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        });
+
+        if (response.data.success) {
+          toast.success('Password updated successfully!');
+          setPasswordData({
+            currentPassword: '',
+            newPassword: '',
+            confirmPassword: ''
+          });
+          setPasswordError('');
+        } else {
+          setPasswordError(response.data.message || 'Failed to update password');
+        }
+      } catch (error) {
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to update password';
+        setPasswordError(errorMessage);
+      } finally {
+        setPasswordLoading(false);
+      }
+    };
+
+    return (
+      <div className="card mt-6">
+        <h2 className="text-xl font-semibold mb-6">Change Password</h2>
+        <form onSubmit={handlePasswordChange} className="space-y-6">
+          {passwordError && (
+            <div className="bg-red-50 text-red-700 p-3 rounded-lg">
+              {passwordError}
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Current Password
+            </label>
+            <input
+              type="password"
+              name="currentPassword"
+              required
+              className="input-field"
+              value={passwordData.currentPassword}
+              onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              New Password
+            </label>
+            <input
+              type="password"
+              name="newPassword"
+              required
+              className="input-field"
+              value={passwordData.newPassword}
+              onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+            />
+            <p className="text-sm text-gray-500 mt-1">
+              Must be at least 6 characters
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Confirm New Password
+            </label>
+            <input
+              type="password"
+              name="confirmPassword"
+              required
+              className="input-field"
+              value={passwordData.confirmPassword}
+              onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+            />
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={passwordLoading}
+              className="btn-primary px-6 py-3"
+            >
+              {passwordLoading ? 'Updating...' : 'Change Password'}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
   };
 
   if (!user) {
@@ -193,13 +345,12 @@ const Profile = () => {
                       type="email"
                       name="email"
                       required
-                      className="input-field bg-gray-50"
+                      className="input-field"
                       value={profileData.email}
                       onChange={handleChange}
-                      disabled
                     />
                     <p className="text-sm text-gray-500 mt-1">
-                      Email cannot be changed
+                      You can change your email (will be verified)
                     </p>
                   </div>
 
@@ -228,6 +379,9 @@ const Profile = () => {
                   </div>
                 </form>
               </div>
+
+              {/* Add Password Change Section */}
+              <PasswordChangeSection />
             </div>
 
             {/* Account Info Sidebar */}
@@ -264,6 +418,7 @@ const Profile = () => {
                   </button>
                   <button 
                     type="button"
+                    onClick={() => toast.info('Account deletion feature coming soon')}
                     className="w-full px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-left"
                   >
                     Delete Account
