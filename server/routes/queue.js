@@ -96,12 +96,24 @@ queueRoutes.post(
       const queueStats = await getQueueStatistics(vendorObjectId);
 
       // Emit real-time update with more information
+      // In your POST /api/queue/join endpoint, after saving:
       const io = req.app.get("io");
       if (io) {
+        // Use the helper or emit directly
         io.to(`vendor-${vendorId}`).emit("queue-updated", {
-          action: "joined",
+          success: true,
+          action: "customer-joined",
           queueEntry: populatedEntry.toObject(),
           queueStats,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Also emit to the specific customer
+        io.emit(`customer-${req.user._id}-queue-update`, {
+          success: true,
+          message: "You joined the queue",
+          position: position,
+          estimatedWaitTime: estimatedWaitTime,
         });
       }
 
@@ -671,198 +683,209 @@ queueRoutes.get(
 
 // @route   PUT /api/queue/:queueId/leave
 // @desc    Customer leaves a queue (CUSTOMER ONLY)
-queueRoutes.put('/:queueId/leave', 
-  protect, 
-  authorize('customer'),  // Only customers can leave
-  validateObjectId('queueId'),
+queueRoutes.put(
+  "/:queueId/leave",
+  protect,
+  authorize("customer"), // Only customers can leave
+  validateObjectId("queueId"),
   async (req, res) => {
-  try {
-    const queueId = req.params.queueId;
-    const queueObjectId = MongoUtils.toObjectId(queueId);
-    
-    console.log('Customer leaving queue:', {
-      queueId,
-      customerId: req.user._id,
-      customerName: req.user.name
-    });
-    
-    // Find queue entry
-    const queueEntry = await QueueEntry.findById(queueObjectId)
-      .populate('vendorId', 'businessName');
-    
-    if (!queueEntry) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Queue entry not found' 
-      });
-    }
-    
-    // Verify customer owns this queue entry
-    if (!MongoUtils.areIdsEqual(queueEntry.customerId, req.user._id)) {
-      return res.status(403).json({ 
-        success: false,
-        message: 'Not authorized. This queue entry does not belong to you.' 
-      });
-    }
-    
-    // Check if already left or served
-    if (queueEntry.status !== 'waiting') {
-      return res.status(400).json({ 
-        success: false,
-        message: `Cannot leave queue. Status is already: ${queueEntry.status}` 
-      });
-    }
-    
-    // Update status to 'left'
-    const oldPosition = queueEntry.position;
-    queueEntry.status = 'left';
-    queueEntry.leftAt = new Date();
-    
-    await queueEntry.save();
-    console.log('Queue entry marked as left by customer');
-    
-    // Update positions of remaining customers
-    const positionUpdate = await QueueEntry.updateMany(
-      {
-        vendorId: queueEntry.vendorId,
-        status: 'waiting',
-        position: { $gt: oldPosition }
-      },
-      { $inc: { position: -1 } }
-    );
-    
-    console.log('Positions updated:', positionUpdate.modifiedCount, 'customers moved up');
-    
-    // Recalculate wait times
-    await recalculateAllWaitTimes(queueEntry.vendorId);
-    
-    // Get updated queue statistics
-    const queueStats = await getQueueStatistics(queueEntry.vendorId);
-    
-    // Emit real-time update to vendor
-    const io = req.app.get('io');
-    if (io) {
-      io.to(`vendor-${queueEntry.vendorId}`).emit('customer-left', {
-        success: true,
-        action: 'left',
+    try {
+      const queueId = req.params.queueId;
+      const queueObjectId = MongoUtils.toObjectId(queueId);
+
+      console.log("Customer leaving queue:", {
+        queueId,
+        customerId: req.user._id,
         customerName: req.user.name,
+      });
+
+      // Find queue entry
+      const queueEntry = await QueueEntry.findById(queueObjectId).populate(
+        "vendorId",
+        "businessName"
+      );
+
+      if (!queueEntry) {
+        return res.status(404).json({
+          success: false,
+          message: "Queue entry not found",
+        });
+      }
+
+      // Verify customer owns this queue entry
+      if (!MongoUtils.areIdsEqual(queueEntry.customerId, req.user._id)) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized. This queue entry does not belong to you.",
+        });
+      }
+
+      // Check if already left or served
+      if (queueEntry.status !== "waiting") {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot leave queue. Status is already: ${queueEntry.status}`,
+        });
+      }
+
+      // Update status to 'left'
+      const oldPosition = queueEntry.position;
+      queueEntry.status = "left";
+      queueEntry.leftAt = new Date();
+
+      await queueEntry.save();
+      console.log("Queue entry marked as left by customer");
+
+      // Update positions of remaining customers
+      const positionUpdate = await QueueEntry.updateMany(
+        {
+          vendorId: queueEntry.vendorId,
+          status: "waiting",
+          position: { $gt: oldPosition },
+        },
+        { $inc: { position: -1 } }
+      );
+
+      console.log(
+        "Positions updated:",
+        positionUpdate.modifiedCount,
+        "customers moved up"
+      );
+
+      // Recalculate wait times
+      await recalculateAllWaitTimes(queueEntry.vendorId);
+
+      // Get updated queue statistics
+      const queueStats = await getQueueStatistics(queueEntry.vendorId);
+
+      // Emit real-time update to vendor
+      const io = req.app.get("io");
+      if (io) {
+        io.to(`vendor-${queueEntry.vendorId}`).emit("customer-left", {
+          success: true,
+          action: "left",
+          customerName: req.user.name,
+          queueStats,
+          leftQueueId: queueEntry._id,
+          oldPosition,
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Successfully left the queue",
+        queueEntry: {
+          _id: queueEntry._id,
+          vendor: queueEntry.vendorId?.businessName,
+          oldPosition,
+          leftAt: queueEntry.leftAt,
+        },
         queueStats,
-        leftQueueId: queueEntry._id,
-        oldPosition
+      });
+    } catch (error) {
+      console.error("Leave queue error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+        error: error.message,
       });
     }
-    
-    res.json({ 
-      success: true,
-      message: 'Successfully left the queue',
-      queueEntry: {
-        _id: queueEntry._id,
-        vendor: queueEntry.vendorId?.businessName,
-        oldPosition,
-        leftAt: queueEntry.leftAt
-      },
-      queueStats
-    });
-    
-  } catch (error) {
-    console.error('Leave queue error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error',
-      error: error.message 
-    });
   }
-});
+);
 
 // @route   PUT /api/queue/:queueId/cancel
 // @desc    Customer cancels their own queue entry (CUSTOMER ONLY)
-queueRoutes.put('/:queueId/cancel', 
-  protect, 
-  authorize('customer'),
-  validateObjectId('queueId'),
+queueRoutes.put(
+  "/:queueId/cancel",
+  protect,
+  authorize("customer"),
+  validateObjectId("queueId"),
   async (req, res) => {
-  try {
-    const queueId = req.params.queueId;
-    const queueObjectId = MongoUtils.toObjectId(queueId);
-    
-    const queueEntry = await QueueEntry.findById(queueObjectId);
-    
-    if (!queueEntry) {
-      return res.status(404).json({ 
+    try {
+      const queueId = req.params.queueId;
+      const queueObjectId = MongoUtils.toObjectId(queueId);
+
+      const queueEntry = await QueueEntry.findById(queueObjectId);
+
+      if (!queueEntry) {
+        return res.status(404).json({
+          success: false,
+          message: "Queue entry not found",
+        });
+      }
+
+      // Verify ownership
+      if (!MongoUtils.areIdsEqual(queueEntry.customerId, req.user._id)) {
+        return res.status(403).json({
+          success: false,
+          message: "Not authorized",
+        });
+      }
+
+      // Update status
+      queueEntry.status = "left";
+      queueEntry.leftAt = new Date();
+      await queueEntry.save();
+
+      // Update positions
+      await QueueEntry.updateMany(
+        {
+          vendorId: queueEntry.vendorId,
+          status: "waiting",
+          position: { $gt: queueEntry.position },
+        },
+        { $inc: { position: -1 } }
+      );
+
+      // Recalculate wait times
+      await recalculateAllWaitTimes(queueEntry.vendorId);
+
+      res.json({
+        success: true,
+        message: "Queue entry cancelled",
+      });
+    } catch (error) {
+      console.error("Cancel queue error:", error);
+      res.status(500).json({
         success: false,
-        message: 'Queue entry not found' 
+        message: "Server error",
       });
     }
-    
-    // Verify ownership
-    if (!MongoUtils.areIdsEqual(queueEntry.customerId, req.user._id)) {
-      return res.status(403).json({ 
-        success: false,
-        message: 'Not authorized' 
-      });
-    }
-    
-    // Update status
-    queueEntry.status = 'left';
-    queueEntry.leftAt = new Date();
-    await queueEntry.save();
-    
-    // Update positions
-    await QueueEntry.updateMany(
-      {
-        vendorId: queueEntry.vendorId,
-        status: 'waiting',
-        position: { $gt: queueEntry.position }
-      },
-      { $inc: { position: -1 } }
-    );
-    
-    // Recalculate wait times
-    await recalculateAllWaitTimes(queueEntry.vendorId);
-    
-    res.json({ 
-      success: true,
-      message: 'Queue entry cancelled'
-    });
-  } catch (error) {
-    console.error('Cancel queue error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    });
   }
-});
+);
 
 // @route   GET /api/queue/user/check/:vendorId
 // @desc    Check if user is in a specific vendor's queue
-queueRoutes.get('/user/check/:vendorId', 
-  protect, 
-  authorize('customer'),
-  validateObjectId('vendorId'),
+queueRoutes.get(
+  "/user/check/:vendorId",
+  protect,
+  authorize("customer"),
+  validateObjectId("vendorId"),
   async (req, res) => {
-  try {
-    const vendorId = req.params.vendorId;
-    const vendorObjectId = MongoUtils.toObjectId(vendorId);
-    
-    const queueEntry = await QueueEntry.findOne({
-      vendorId: vendorObjectId,
-      customerId: req.user._id,
-      status: 'waiting'
-    });
-    
-    res.json({
-      success: true,
-      isInQueue: !!queueEntry,
-      queueEntry: queueEntry || null,
-      position: queueEntry?.position
-    });
-  } catch (error) {
-    console.error('Check queue error:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Server error' 
-    });
+    try {
+      const vendorId = req.params.vendorId;
+      const vendorObjectId = MongoUtils.toObjectId(vendorId);
+
+      const queueEntry = await QueueEntry.findOne({
+        vendorId: vendorObjectId,
+        customerId: req.user._id,
+        status: "waiting",
+      });
+
+      res.json({
+        success: true,
+        isInQueue: !!queueEntry,
+        queueEntry: queueEntry || null,
+        position: queueEntry?.position,
+      });
+    } catch (error) {
+      console.error("Check queue error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Server error",
+      });
+    }
   }
-});
+);
 
 export default queueRoutes;
