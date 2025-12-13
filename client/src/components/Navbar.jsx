@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Avatar from "./Avatar";
+import { assets } from "../assets/assets";
 
 const Navbar = () => {
   const { user, logout, isAuthenticated } = useAuth();
@@ -52,13 +53,10 @@ const Navbar = () => {
   return (
     <nav className="bg-white shadow-md">
       <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold text-primary-600">Leskew</span>
-            <span className="text-sm text-gray-600 hidden sm:inline">
-              Less Queue. More Service.
-            </span>
+            <img src={assets.leskew_logo} alt="Leskew Logo" className="size-[210px]" />
           </Link>
 
           {/* Navigation Links */}

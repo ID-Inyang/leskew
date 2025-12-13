@@ -7,6 +7,12 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Roboto', 'ui-sans-serif', 'system-ui'],
+        becomesnote: ['BecomesNote'],
+        amore: ['AmoreChristmas', 'cursive'],
+        stars: ['StarsBorneo', 'sans-serif'],
+      },
       colors: {
         primary: {
           50: '#eff6ff',

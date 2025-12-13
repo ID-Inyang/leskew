@@ -29,3 +29,29 @@
     @apply bg-white rounded-xl shadow-md p-6;
   }
 }
+
+
+@font-face {
+  font-family: 'AmoreChristmas';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/amore_christmas/Amore_Christmas.otf") format('opentype');
+}
+
+
+  @font-face {
+  font-family: 'BecomesNote';
+  src: url('./assets/becomes_notes/Becomes\ Notes.ttf') format('truetype'),
+       url('./assets/becomes_notes/Becomes\ Notes.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'StarsBorneo';
+  src: url('./assets/stars_borneo/StarsBorneoDEMO.ttf') format('truetype'),
+       url('./assets/stars_borneo/StarsBorneoDEMO.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
