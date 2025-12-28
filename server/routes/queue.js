@@ -354,7 +354,7 @@ queueRoutes.put(
 
       console.log("=== CALL CUSTOMER COMPLETE ===");
     } catch (error) {
-      console.error("❌ Call customer error:", error);
+      console.error("Call customer error:", error);
       res.status(500).json({
         success: false,
         message: "Server error",

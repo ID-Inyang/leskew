@@ -2,7 +2,7 @@
 import { calculateWaitTime, getQueueStatistics, testQueueCalculator } from '../utils/queueCalculator.js';
 
 async function runTests() {
-  console.log('🚀 Testing Queue Calculator Implementation\n');
+  console.log('Testing Queue Calculator Implementation\n');
   
   // Test 1: Basic calculation
   console.log('Test 1 - Basic Wait Time Calculation:');
@@ -21,7 +21,7 @@ async function runTests() {
   console.log('\nTest 3 - Built-in Tests:');
   await testQueueCalculator();
   
-  console.log('\n✅ All tests completed!');
+  console.log('\nAll tests completed!');
 }
 
 runTests().catch(console.error);

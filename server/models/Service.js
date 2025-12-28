@@ -1,4 +1,4 @@
-// server/models/Service.js (Create this file)
+// server/models/Service.js
 import mongoose from "mongoose";
 
 const serviceSchema = new mongoose.Schema(

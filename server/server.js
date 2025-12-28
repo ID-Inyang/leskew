@@ -41,12 +41,12 @@ app.set('io', io);
 // Socket.io connection handling with authentication
 io.use((socket, next) => {
   // Basic middleware - you can add JWT verification here if needed
-  console.log('🔐 Socket middleware for:', socket.id);
+  console.log('Socket middleware for:', socket.id);
   next();
 });
 
 io.on('connection', (socket) => {
-  console.log('🔌 New client connected:', socket.id);
+  console.log('New client connected:', socket.id);
   console.log('Socket handshake:', socket.handshake.headers);
   
   // Store vendor rooms that this socket is in
@@ -55,7 +55,7 @@ io.on('connection', (socket) => {
   // Join vendor queue room
   socket.on('join-vendor-queue', (vendorId) => {
     if (!vendorId) {
-      console.log('❌ Invalid vendorId for join:', vendorId);
+      console.log('Invalid vendorId for join:', vendorId);
       return;
     }
     
@@ -63,8 +63,8 @@ io.on('connection', (socket) => {
     socket.join(roomName);
     vendorRooms.add(vendorId);
     
-    console.log(`👥 Socket ${socket.id} joined ${roomName}`);
-    console.log(`📊 Currently in rooms:`, Array.from(vendorRooms));
+    console.log(`Socket ${socket.id} joined ${roomName}`);
+    console.log(`Currently in rooms:`, Array.from(vendorRooms));
     
     // Acknowledge join
     socket.emit('room-joined', { 
@@ -82,7 +82,7 @@ io.on('connection', (socket) => {
     socket.leave(roomName);
     vendorRooms.delete(vendorId);
     
-    console.log(`👋 Socket ${socket.id} left ${roomName}`);
+    console.log(`Socket ${socket.id} left ${roomName}`);
     
     // Acknowledge leave
     socket.emit('room-left', { 
@@ -97,11 +97,11 @@ io.on('connection', (socket) => {
     const { vendorId, customerId, queueEntry } = data;
     
     if (!vendorId || !customerId) {
-      console.log('❌ Missing vendorId or customerId for customer-join-queue');
+      console.log('Missing vendorId or customerId for customer-join-queue');
       return;
     }
     
-    console.log(`📝 Customer ${customerId} joined queue for vendor ${vendorId}`);
+    console.log(`Customer ${customerId} joined queue for vendor ${vendorId}`);
     
     // Notify vendor room
     io.to(`vendor-${vendorId}`).emit('queue-updated', {
@@ -118,11 +118,11 @@ io.on('connection', (socket) => {
     const { vendorId, customerId, queueEntry } = data;
     
     if (!vendorId) {
-      console.log('❌ Missing vendorId for call-next-customer');
+      console.log('Missing vendorId for call-next-customer');
       return;
     }
     
-    console.log(`📢 Vendor ${vendorId} calling customer ${customerId || 'unknown'}`);
+    console.log(`Vendor ${vendorId} calling customer ${customerId || 'unknown'}`);
     
     // Notify vendor room
     io.to(`vendor-${vendorId}`).emit('customer-called', {
@@ -149,11 +149,11 @@ io.on('connection', (socket) => {
     const { vendorId, customerId, queueId } = data;
     
     if (!vendorId || !customerId) {
-      console.log('❌ Missing vendorId or customerId for customer-left-queue');
+      console.log('Missing vendorId or customerId for customer-left-queue');
       return;
     }
     
-    console.log(`🚶 Customer ${customerId} left queue for vendor ${vendorId}`);
+    console.log(`Customer ${customerId} left queue for vendor ${vendorId}`);
     
     // Notify vendor room
     io.to(`vendor-${vendorId}`).emit('customer-left', {
@@ -182,7 +182,7 @@ io.on('connection', (socket) => {
   
   // Handle disconnection
   socket.on('disconnect', (reason) => {
-    console.log(`🔌 Client disconnected: ${socket.id}, Reason: ${reason}`);
+    console.log(`Client disconnected: ${socket.id}, Reason: ${reason}`);
     
     // Clean up - leave all vendor rooms
     vendorRooms.forEach(vendorId => {
@@ -192,13 +192,13 @@ io.on('connection', (socket) => {
     
     // Notify if needed
     if (reason === 'transport close') {
-      console.log('⚠️ Transport closed, client might reconnect');
+      console.log('Transport closed, client might reconnect');
     }
   });
   
   // Error handling
   socket.on('error', (error) => {
-    console.error(`❌ Socket error for ${socket.id}:`, error.message);
+    console.error(`Socket error for ${socket.id}:`, error.message);
   });
   
   // Send connection confirmation
@@ -224,7 +224,7 @@ const emitToVendorRoom = (vendorId, event, data) => {
     timestamp: new Date().toISOString()
   });
   
-  console.log(`📤 Emitted ${event} to ${roomName}`);
+  console.log(`Emitted ${event} to ${roomName}`);
 };
 
 // Helper function to emit to specific customer
@@ -252,39 +252,39 @@ app.use(morgan('dev'));
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/services', serviceRoutes);
 
-// MongoDB Atlas Connection - FIXED VERSION
+// MongoDB Atlas Connection 
 const connectDB = async () => {
   try {
     if (!process.env.MONGODB_URI) {
       throw new Error('MONGODB_URI is not defined in .env file');
     }
     
-    console.log('🔗 Connecting to MongoDB Atlas...');
+    console.log('Connecting to MongoDB Atlas...');
     console.log('URI:', process.env.MONGODB_URI.replace(/:[^:]*@/, ':****@')); // Hide password
     
     // Remove deprecated options - Mongoose 6+ handles these automatically
     const conn = await mongoose.connect(process.env.MONGODB_URI);
     
-    console.log(`✅ MongoDB Atlas Connected: ${conn.connection.host}`);
-    console.log(`📊 Database: ${conn.connection.name}`);
+    console.log(`MongoDB Atlas Connected: ${conn.connection.host}`);
+    console.log(`Database: ${conn.connection.name}`);
     
     // Connection event listeners
     mongoose.connection.on('connected', () => {
-      console.log('🔌 Mongoose connected to DB');
+      console.log('Mongoose connected to DB');
     });
     
     mongoose.connection.on('error', (err) => {
-      console.error('❌ Mongoose connection error:', err.message);
+      console.error('Mongoose connection error:', err.message);
     });
     
     mongoose.connection.on('disconnected', () => {
-      console.log('🔌 Mongoose disconnected from DB');
+      console.log('Mongoose disconnected from DB');
     });
     
     return conn;
   } catch (error) {
-    console.error(`❌ MongoDB Connection Failed: ${error.message}`);
-    console.error('\n💡 Troubleshooting tips:');
+    console.error(`MongoDB Connection Failed: ${error.message}`);
+    console.error('\nTroubleshooting tips:');
     console.error('1. Check your MONGODB_URI format in .env file');
     console.error('2. Make sure your IP is whitelisted in MongoDB Atlas');
     console.error('3. Verify username/password are correct');
@@ -292,18 +292,18 @@ const connectDB = async () => {
     console.error('5. Check if database name exists: "leskew"');
     
     // For development, we'll continue without DB
-    console.log('⚠️ Continuing in development mode without database...');
+    console.log('Continuing in development mode without database...');
     return null;
   }
 };
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('🔌 New client connected:', socket.id);
+  console.log('New client connected:', socket.id);
   
   socket.on('join-vendor-queue', (vendorId) => {
     socket.join(`vendor-${vendorId}`);
-    console.log(`👥 Socket ${socket.id} joined vendor-${vendorId}`);
+    console.log(`Socket ${socket.id} joined vendor-${vendorId}`);
   });
   
   socket.on('leave-vendor-queue', (vendorId) => {
@@ -311,7 +311,7 @@ io.on('connection', (socket) => {
   });
   
   socket.on('disconnect', () => {
-    console.log('🔌 Client disconnected:', socket.id);
+    console.log('Client disconnected:', socket.id);
   });
 });
 
@@ -361,7 +361,7 @@ app.get('/api/db-status', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('🔥 Error:', err.message);
+  console.error('Error:', err.message);
   res.status(err.status || 500).json({
     message: err.message || 'Something went wrong!',
     error: process.env.NODE_ENV === 'development' ? err.stack : undefined
@@ -385,14 +385,14 @@ const startServer = async () => {
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => {
       console.log(`
-      🚀 Server running on port ${PORT}
-      🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}
-      📊 Database: ${mongoose.connection.readyState === 1 ? 'Connected to MongoDB Atlas' : 'Not connected'}
-      📅 Started at: ${new Date().toLocaleString()}
+      Server running on port ${PORT}
+      Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}
+      Database: ${mongoose.connection.readyState === 1 ? 'Connected to MongoDB Atlas' : 'Not connected'}
+      Started at: ${new Date().toLocaleString()}
       `);
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 };

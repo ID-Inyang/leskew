@@ -1,4 +1,4 @@
-// server/models/Analytics.js - Enhanced version
+// server/models/Analytics.js
 import mongoose from 'mongoose';
 
 const analyticsSchema = new mongoose.Schema({

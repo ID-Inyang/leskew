@@ -1,9 +1,9 @@
-// server/routes/appointments.js - Updated with proper ObjectId handling
+// server/routes/appointments.js
 import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
 import Appointment from '../models/Appointment.js';
 import Vendor from '../models/Vendor.js';
-import MongoUtils from '../utils/mongoUtils.js'; // Add this import
+import MongoUtils from '../utils/mongoUtils.js'; 
 
 const appointmentRoutes = express.Router();
 

@@ -1,9 +1,9 @@
-// server/routes/admin.js - Fixed ObjectId handling
+// server/routes/admin.js
 import express from 'express';
 import { protect, authorize } from '../middleware/auth.js';
 import User from '../models/User.js';
 import Vendor from '../models/Vendor.js';
-import MongoUtils from '../utils/mongoUtils.js'; // Add this import
+import MongoUtils from '../utils/mongoUtils.js';
 
 const adminRoutes = express.Router();
 

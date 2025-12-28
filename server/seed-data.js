@@ -11,18 +11,18 @@ dotenv.config();
 
 const seedDatabase = async () => {
   try {
-    console.log("🌱 Starting database seeding...");
+    console.log("Starting database seeding...");
 
     // Connect to MongoDB
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log("✅ Connected to MongoDB");
+    console.log("Connected to MongoDB");
 
     // Clear existing data
     await User.deleteMany({});
     await Vendor.deleteMany({});
     await Appointment.deleteMany({});
     await QueueEntry.deleteMany({});
-    console.log("✅ Cleared existing data");
+    console.log("Cleared existing data");
 
     // Hash passwords
     const salt = await bcrypt.genSalt(10);
@@ -39,7 +39,7 @@ const seedDatabase = async () => {
       role: "admin",
     });
     await adminUser.save();
-    console.log("👑 Created admin: admin@leskew.com / admin123");
+    console.log("Created admin: admin@leskew.com / admin123");
 
     // 2. Create Vendor Users with Businesses
     const vendorsData = [
@@ -147,7 +147,7 @@ const seedDatabase = async () => {
       });
       await vendor.save();
       createdVendors.push({ user: vendorUser, vendor });
-      console.log(`🏪 Created vendor: ${vendorInfo.businessName}`);
+      console.log(`Created vendor: ${vendorInfo.businessName}`);
     }
 
     // 3. Create Customer Users
@@ -190,11 +190,11 @@ const seedDatabase = async () => {
       });
       await customer.save();
       createdCustomers.push(customer);
-      console.log(`👤 Created customer: ${customerInfo.name}`);
+      console.log(`Created customer: ${customerInfo.name}`);
     }
 
     // 4. Create Appointments
-    console.log("\n📅 Creating appointments...");
+    console.log("\nCreating appointments...");
     const services = [
       {
         id: "haircut-premium",
@@ -263,10 +263,10 @@ const seedDatabase = async () => {
       await appointment.save();
       appointments.push(appointment);
     }
-    console.log(`✅ Created ${appointments.length} appointments`);
+    console.log(`Created ${appointments.length} appointments`);
 
     // 5. Create Queue Entries
-    console.log("\n⏳ Creating queue entries...");
+    console.log("\Creating queue entries...");
     const queueEntries = [];
     for (let i = 0; i < 8; i++) {
       const customer =
@@ -290,7 +290,7 @@ const seedDatabase = async () => {
       await queueEntry.save();
       queueEntries.push(queueEntry);
     }
-    console.log(`✅ Created ${queueEntries.length} queue entries`);
+    console.log(`Created ${queueEntries.length} queue entries`);
 
     // Add this to your existing seed-data.js or create a new one
 const updateVendorsWithServiceData = async () => {
@@ -331,26 +331,25 @@ const updateVendorsWithServiceData = async () => {
 };
 
     // Summary
-    console.log("\n🎉 Database seeding completed!");
+    console.log("\Database seeding completed!");
     console.log("=".repeat(50));
-    console.log("📊 SEEDING SUMMARY:");
+    console.log("SEEDING SUMMARY:");
     console.log("=".repeat(50));
-    console.log(`👑 Admin: 1 user (admin@leskew.com / admin123)`);
-    console.log(`🏪 Vendors: ${createdVendors.length} businesses`);
-    console.log(`👤 Customers: ${createdCustomers.length} users`);
-    console.log(`📅 Appointments: ${appointments.length} bookings`);
-    console.log(`⏳ Queue entries: ${queueEntries.length} entries`);
+    console.log(`Admin: 1 user (admin@leskew.com / admin123)`);
+    console.log(`Vendors: ${createdVendors.length} businesses`);
+    console.log(`Customers: ${createdCustomers.length} users`);
+    console.log(`Appointments: ${appointments.length} bookings`);
+    console.log(`Queue entries: ${queueEntries.length} entries`);
     console.log("=".repeat(50));
-    console.log("\n🔑 TEST ACCOUNTS:");
+    console.log("\TEST ACCOUNTS:");
     console.log("- Admin: admin@leskew.com / admin123");
     console.log("- Vendor: john@premiumbarber.com / vendor123");
     console.log("- Customer: alex@customer.com / customer123");
-    console.log("\n🚀 Start exploring your Leskew platform!");
 
     await mongoose.disconnect();
     process.exit(0);
   } catch (error) {
-    console.error("❌ Seeding error:", error);
+    console.error("Seeding error:", error);
     process.exit(1);
   }
 };

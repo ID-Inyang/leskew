@@ -137,13 +137,13 @@ router.post('/login', [
   try {
     const { email, password } = req.body;
     
-    console.log('🔐 Login attempt for:', email);
+    console.log('Login attempt for:', email);
 
     // Find user by email
     const user = await User.findOne({ email });
     
     if (!user) {
-      console.log('❌ User not found:', email);
+      console.log('User not found:', email);
       return res.status(401).json({ 
         success: false,
         message: 'Invalid credentials' 
@@ -154,7 +154,7 @@ router.post('/login', [
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     
     if (!isPasswordValid) {
-      console.log('❌ Invalid password for:', email);
+      console.log('Invalid password for:', email);
       return res.status(401).json({ 
         success: false,
         message: 'Invalid credentials' 
@@ -170,7 +170,7 @@ router.post('/login', [
     // Generate token
     const token = generateToken(user._id);
     
-    console.log('✅ Login successful for:', email);
+    console.log('Login successful for:', email);
 
     res.json({
       success: true,
