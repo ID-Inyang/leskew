@@ -17,14 +17,10 @@ const Hero = () => {
   onInit={(typewriter) => {
     typewriter
       .typeString('<span class="font-stars text-5xl">Welcome to Leskew</span>')
-      .start(); // 👈 no delete, just stop after typing
+      .start(); 
   }}
 />
-
         </div>
-
-
-
           <p className="text-xl  mb-8 max-w-2xl mx-auto">
             Book appointments and join real-time virtual queues
             for your favorite local businesses from anywhere.
